@@ -22,4 +22,6 @@ COPY . .
 
 EXPOSE 3000
 # Run migrations/push when container starts (after DB is live)
-CMD ["sh", "-c", "pnpm prisma db push && pnpm dev"]
+# CMD ["sh", "-c", "pnpm prisma db push && pnpm dev"]
+CMD ["sh", "-c", "pnpm prisma db push && pnpm dev --host 0.0.0.0"]
+

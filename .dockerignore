@@ -1,5 +1,13 @@
+*.md
 node_modules
+.next
+.postgres-data
+.env
+dev.Dockerfile
+docker-compose.yml
 .git
 .gitignore
-*.md
+*.log
+tmp
 dist
+coverage

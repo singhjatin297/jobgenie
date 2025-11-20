@@ -41,8 +41,8 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/public ./public
 
-COPY --from=builder /app/node_modules/.prisma/client ./node_modules/.prisma/client
-
+# This one line fixes the "Query Engine not found" error forever with pnpm + Prisma 6
+COPY --from=builder /app/node_modules/.pnpm/@prisma+engines@*/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node ./node_modules/.prisma/client/
 EXPOSE 3000
 
 CMD ["sh", "-c", "pnpm prisma migrate deploy && pnpm start"]

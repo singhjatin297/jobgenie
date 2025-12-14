@@ -12,7 +12,9 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/postgres
+      - HOSTNAME=0.0.0.0
+      - NEXT_PRIVATE_TURBOPACK=0
 
   db:
     image: postgres:15

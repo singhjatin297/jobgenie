@@ -20,8 +20,12 @@ RUN pnpm prisma generate
 # Copy the rest of the code
 COPY . .
 
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+ENV WDS_SOCKET_PORT=0
+
 EXPOSE 3000
 # Run migrations/push when container starts (after DB is live)
 # CMD ["sh", "-c", "pnpm prisma db push && pnpm dev"]
-CMD ["sh", "-c", "pnpm prisma db push && pnpm dev --host 0.0.0.0"]
+CMD ["sh", "-c", "pnpm prisma db push && pnpm dev"]
 

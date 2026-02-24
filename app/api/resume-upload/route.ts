@@ -35,22 +35,49 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: `You are an expert resume parser. Extract EXACTLY this JSON format and NOTHING else (no extra text, no markdown):
-            {
-              "name": string,
-              "yearsOfExperience": number,
-              "skills": string[],
-              "currentTitle": string,
-              "preferredLocations": string[],
-              "willingToRelocate": boolean,
-              "noticePeriodDays": number
-            }`,
+          content: `You are an expert resume parser. Extract the data into the specified JSON format.
+      
+      RULES FOR MISSING DATA:
+      - If a string field is missing, return null.
+      - If a number field (yearsOfExperience, noticePeriodDays) is missing, return 0.
+      - If an array field (skills, education, workHistory, projects) is missing, return [].
+      - For 'noticePeriodDays', convert text like "immediate" to 0, "2 weeks" to 14, "1 month" to 30.
+      
+      STRICT JSON SCHEMA:
+      {
+        "name": string,
+        "email": string,
+        "phone": string,
+        "currentTitle": string,
+        "yearsOfExperience": number,
+        "skills": string[],
+        "education": [{
+          "degree": string,
+          "institution": string,
+          "graduationYear": number
+        }],
+        "workHistory": [{
+          "company": string,
+          "role": string,
+          "duration": string,
+          "description": string
+        }],
+        "projects": [{
+          "title": string,
+          "description": string,
+          "technologiesUsed": string[]
+        }],
+        "preferredLocations": string[],
+        "willingToRelocate": boolean,
+        "noticePeriodDays": number
+      }`,
         },
         { role: "user", content: text.slice(0, 30000) },
       ],
       model: "llama-3.3-70b-versatile",
       temperature: 0,
-      max_tokens: 500,
+      max_tokens: 2000,
+      response_format: { type: "json_object" },
     });
 
     const aiContent = completion?.choices[0]?.message?.content?.trim();

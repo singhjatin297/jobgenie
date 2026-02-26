@@ -283,7 +283,10 @@ const JobsPage = () => {
     });
   }, [country, datePosted, employmentTypes, jobs, query, workFromHome]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / JOBS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredJobs.length / JOBS_PER_PAGE),
+  );
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const pageStart = (safeCurrentPage - 1) * JOBS_PER_PAGE;
   const pageEnd = pageStart + JOBS_PER_PAGE;
@@ -372,9 +375,7 @@ const JobsPage = () => {
                     setCountry(event.target.value.toUpperCase())
                   }
                 />
-                <p className="text-xs text-foreground/60">
-                  Use ISO-2 country codes (example: Berlin -`&gt;` DE).
-                </p>
+                <p className="text-xs text-foreground/60"></p>
               </div>
 
               <div className="space-y-2">
@@ -460,9 +461,7 @@ const JobsPage = () => {
                     );
                   })}
                 </div>
-                <p className="text-xs text-foreground/60">
-                  Sent as a comma-delimited list.
-                </p>
+                <p className="text-xs text-foreground/60"></p>
               </div>
 
               <Button
@@ -520,14 +519,16 @@ const JobsPage = () => {
                   </p>
                   {!!job.fitBreakdown?.matchedSkills?.length && (
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      {job.fitBreakdown.matchedSkills.slice(0, 4).map((skill) => (
-                        <span
-                          key={`${job.id}-${skill}`}
-                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700"
-                        >
-                          Matched: {skill}
-                        </span>
-                      ))}
+                      {job.fitBreakdown.matchedSkills
+                        .slice(0, 4)
+                        .map((skill) => (
+                          <span
+                            key={`${job.id}-${skill}`}
+                            className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700"
+                          >
+                            Matched: {skill}
+                          </span>
+                        ))}
                     </div>
                   )}
                   <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-foreground/60">
@@ -568,7 +569,9 @@ const JobsPage = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-foreground/10 bg-white/80 p-4 shadow-sm backdrop-blur">
                   <div className="space-y-1">
                     <p className="text-sm text-foreground/60">
-                    Showing {pageStart + 1}-{Math.min(pageEnd, filteredJobs.length)} of {filteredJobs.length}
+                      Showing {pageStart + 1}-
+                      {Math.min(pageEnd, filteredJobs.length)} of{" "}
+                      {filteredJobs.length}
                     </p>
                     {totalPages === 1 && (
                       <p className="text-xs text-foreground/50">
@@ -582,22 +585,36 @@ const JobsPage = () => {
                       variant="outline"
                       size="sm"
                       disabled={safeCurrentPage === 1}
-                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(1, prev - 1))
+                      }
                     >
                       Previous
                     </Button>
 
                     {pageNumbers.map((pageNumber, index) => {
                       const prev = pageNumbers[index - 1];
-                      const showGap = typeof prev === "number" && pageNumber - prev > 1;
+                      const showGap =
+                        typeof prev === "number" && pageNumber - prev > 1;
 
                       return (
-                        <div key={`page-${pageNumber}`} className="flex items-center gap-2">
-                          {showGap && <span className="px-1 text-sm text-foreground/50">...</span>}
+                        <div
+                          key={`page-${pageNumber}`}
+                          className="flex items-center gap-2"
+                        >
+                          {showGap && (
+                            <span className="px-1 text-sm text-foreground/50">
+                              ...
+                            </span>
+                          )}
                           <Button
                             type="button"
                             size="sm"
-                            variant={pageNumber === safeCurrentPage ? "default" : "outline"}
+                            variant={
+                              pageNumber === safeCurrentPage
+                                ? "default"
+                                : "outline"
+                            }
                             onClick={() => setCurrentPage(pageNumber)}
                           >
                             {pageNumber}

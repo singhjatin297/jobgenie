@@ -73,6 +73,17 @@ export const useResumeStore = create<ResumeStore>()(
     {
       name: "resume-storage",
       storage: createJSONStorage(() => localStorage),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<ResumeStore>;
+
+        return {
+          ...currentState,
+          ...persisted,
+          // Prevent late hydration from clobbering freshly uploaded in-memory data.
+          resumeObject:
+            currentState.resumeObject ?? persisted.resumeObject ?? null,
+        };
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

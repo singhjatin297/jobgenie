@@ -29,6 +29,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { csSkills, indianPlaces } from "@/utils/option";
+import { Spinner } from "@/components/ui/spinner";
 
 const educationSchema = z.object({
   degree: z.string(),
@@ -87,7 +88,7 @@ const EditResume = () => {
     register,
     control,
     setValue,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<resumeType>({
     defaultValues: {
       name: resumeObject?.parsedData?.name,
@@ -164,10 +165,9 @@ const EditResume = () => {
     localStorage.setItem("Resume", JSON.stringify(data));
 
     try {
-      const queryParts = [
-        data.currentTitle,
-        ...data.skills.slice(0, 3),
-      ].filter(Boolean);
+      const queryParts = [data.currentTitle, ...data.skills.slice(0, 3)].filter(
+        Boolean,
+      );
       const params = new URLSearchParams({
         query: queryParts.join(" "),
         country: "in",
@@ -185,7 +185,16 @@ const EditResume = () => {
       localStorage.setItem("jSearchResponse", JSON.stringify(payload));
       toast.success("Thanku ❤️");
 
-      router.push("/jobs");
+      const firstJob = payload?.data?.[0];
+      if (firstJob?.job_id) {
+        const detailsParams = new URLSearchParams({
+          job_id: firstJob.job_id,
+          country: (firstJob.job_country ?? "in").toLowerCase(),
+        });
+        router.push(`/jobDetails?${detailsParams.toString()}`);
+      } else {
+        router.push("/jobs");
+      }
       reset();
     } catch (error) {
       console.error("Resume upload failed:", error);
@@ -737,12 +746,22 @@ const EditResume = () => {
           </section>
 
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-foreground/10 bg-white/80 p-5 shadow-sm backdrop-blur">
-            <div className="text-sm text-foreground/60">
-              All changes stay local to your workspace until you export.
-            </div>
+            <div className="text-sm text-foreground/60"></div>
             <div className="flex flex-wrap items-center gap-2 md:flex-row">
-              <Button type="submit" size="lg" aria-label="Submit">
-                Save & continue
+              <Button
+                type="submit"
+                size="lg"
+                aria-label="Submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Spinner className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save & continue"
+                )}
               </Button>
             </div>
           </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 type ApplyOption = {
   publisher?: string;
@@ -166,8 +167,8 @@ const JobDetailsPage = () => {
   if (isLoading) {
     return (
       <main className="mx-auto max-w-5xl px-6 py-10">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
-          Loading job details...
+        <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-8">
+          <Spinner className="h-5 w-5" />
         </div>
       </main>
     );

@@ -66,15 +66,20 @@ type resumeType = z.infer<typeof resumeSchema>;
 const EditResume = () => {
   const router = useRouter();
   const resumeObject = useResumeStore((state) => state.resumeObject);
+  const hasHydrated = useResumeStore((state) => state.hasHydrated);
   const [skills, setSkills] = useState<string[]>([]);
   const [preferredLocations, setPreferredLocations] = useState<string[]>([]);
   const [relocateChoice, setRelocateChoice] = useState("no");
 
   useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
     if (!resumeObject) {
       router.push("/");
     }
-  }, [router, resumeObject]);
+  }, [hasHydrated, router, resumeObject]);
 
   const {
     handleSubmit,
@@ -159,14 +164,18 @@ const EditResume = () => {
     localStorage.setItem("Resume", JSON.stringify(data));
 
     try {
+      const queryParts = [
+        data.currentTitle,
+        ...data.skills.slice(0, 3),
+      ].filter(Boolean);
       const params = new URLSearchParams({
-        query: data.currentTitle,
+        query: queryParts.join(" "),
         country: "in",
         page: "1",
+        max_pages: "5",
       });
 
       const res = await fetch(`/api/job-search?${params.toString()}`);
-
       if (!res.ok) {
         const error = await res.text();
         throw new Error(error || "Failed");

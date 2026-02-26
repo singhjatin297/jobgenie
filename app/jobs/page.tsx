@@ -37,6 +37,8 @@ const jobRequirementOptions = [
   "no_degree",
 ] as const;
 
+const JOBS_PER_PAGE = 10;
+
 type Job = {
   id: string;
   role: string;
@@ -48,6 +50,33 @@ type Job = {
   postedDaysAgo: number;
   highlight: string;
   applyUrl: string;
+  description: string;
+  requirements: string;
+  matchScore?: number;
+  whyMatched?: string[];
+  fitBreakdown?: {
+    matchedSkills: string[];
+    missingSkills: string[];
+    seniorityMismatch: string | null;
+  };
+};
+
+type ResumeForRanking = {
+  currentTitle?: string;
+  yearsOfExperience?: number;
+  skills?: string[];
+  preferredLocations?: string[];
+  workHistory?: Array<{
+    company?: string;
+    role?: string;
+    description?: string;
+    duration?: string;
+  }>;
+  projects?: Array<{
+    name?: string;
+    title?: string;
+    description?: string;
+  }>;
 };
 
 type JSearchResponse = {
@@ -61,6 +90,11 @@ type JSearchResponse = {
     job_is_remote?: boolean;
     job_posted_at?: string | null;
     job_apply_link?: string;
+    job_description?: string | null;
+    job_highlights?: {
+      Qualifications?: string[];
+      Responsibilities?: string[];
+    };
   }>;
 };
 
@@ -95,6 +129,11 @@ const mapJSearchJobs = (payload: JSearchResponse | null): Job[] => {
       postedDaysAgo: parsePostedDays(job.job_posted_at ?? null),
       highlight: "Open role matched to your resume.",
       applyUrl: job.job_apply_link ?? "",
+      description: job.job_description ?? "",
+      requirements: [
+        ...(job.job_highlights?.Qualifications ?? []),
+        ...(job.job_highlights?.Responsibilities ?? []),
+      ].join(" "),
     };
   });
 };
@@ -105,12 +144,13 @@ const JobsPage = () => {
   const clearResume = useResumeStore((state) => state.clearResume);
 
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [scoringMode, setScoringMode] = useState<string>("");
   const [query, setQuery] = useState(searchParams.get("query") ?? "");
   const [country, setCountry] = useState(
     (searchParams.get("country") ?? "").toUpperCase(),
   );
   const [datePosted, setDatePosted] = useState(
-    searchParams.get("date_posted") ?? "month",
+    searchParams.get("date_posted") ?? "all",
   );
   const [workFromHome, setWorkFromHome] = useState(
     searchParams.get("work_from_home") ?? "",
@@ -121,6 +161,7 @@ const JobsPage = () => {
   const [jobRequirements, setJobRequirements] = useState<string[]>(
     (searchParams.get("job_requirements") ?? "").split(",").filter(Boolean),
   );
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     clearResume();
@@ -140,6 +181,40 @@ const JobsPage = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!jobs.length) return;
+
+    const rankJobs = async () => {
+      const rawResume = localStorage.getItem("Resume");
+      if (!rawResume) return;
+
+      try {
+        const candidate = JSON.parse(rawResume) as ResumeForRanking;
+        const res = await fetch("/api/rank-jobs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ candidate, jobs }),
+        });
+
+        if (!res.ok) return;
+        const payload = (await res.json()) as {
+          scoringMode?: string;
+          rankedJobs?: Job[];
+        };
+        setScoringMode(payload.scoringMode ?? "");
+        if (payload.rankedJobs?.length) {
+          setJobs(payload.rankedJobs);
+        }
+      } catch {
+        // Keep unranked jobs visible if ranking fails.
+      }
+    };
+
+    void rankJobs();
+  }, [jobs.length]);
+
   const applyFilters = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("query", query.trim());
@@ -153,15 +228,17 @@ const JobsPage = () => {
 
     const next = params.toString();
     router.replace(next ? `/jobs?${next}` : "/jobs");
+    setCurrentPage(1);
   };
 
   const clearFilters = () => {
     setQuery("");
     setCountry("");
-    setDatePosted("month");
+    setDatePosted("all");
     setWorkFromHome("");
     setEmploymentTypes([]);
     setJobRequirements([]);
+    setCurrentPage(1);
     router.replace("/jobs");
   };
 
@@ -205,6 +282,31 @@ const JobsPage = () => {
       );
     });
   }, [country, datePosted, employmentTypes, jobs, query, workFromHome]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / JOBS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pageStart = (safeCurrentPage - 1) * JOBS_PER_PAGE;
+  const pageEnd = pageStart + JOBS_PER_PAGE;
+  const visibleJobs = filteredJobs.slice(pageStart, pageEnd);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const start = Math.max(1, safeCurrentPage - 2);
+    const end = Math.min(totalPages, safeCurrentPage + 2);
+    const core = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+    const withBounds = new Set<number>([1, totalPages, ...core]);
+    return Array.from(withBounds).sort((a, b) => a - b);
+  }, [safeCurrentPage, totalPages]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(1200px_600px_at_15%_-10%,#FFE3D4_0%,transparent_55%),radial-gradient(900px_500px_at_100%_0%,#E0F2FE_0%,transparent_50%),linear-gradient(180deg,#F8FAFC_0%,#FFFFFF_100%)]">
@@ -383,16 +485,17 @@ const JobsPage = () => {
                   </h2>
                   <p className="text-sm text-foreground/60">
                     {filteredJobs.length} matches based on your filters.
+                    {scoringMode ? ` Ranked via ${scoringMode}.` : ""}
                   </p>
                 </div>
                 <div className="text-xs font-medium uppercase tracking-[0.2em] text-foreground/50">
-                  Updated today
+                  Page {safeCurrentPage} of {totalPages}
                 </div>
               </div>
             </div>
 
             <div className="grid gap-4">
-              {filteredJobs.map((job) => (
+              {visibleJobs.map((job) => (
                 <article
                   key={job.id}
                   className="rounded-2xl border border-foreground/10 bg-white/80 p-6 shadow-sm backdrop-blur"
@@ -413,9 +516,26 @@ const JobsPage = () => {
                     )}
                   </div>
                   <p className="mt-4 text-sm text-foreground/70">
-                    {job.highlight}
+                    {job.whyMatched?.[0] ?? job.highlight}
                   </p>
+                  {!!job.fitBreakdown?.matchedSkills?.length && (
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      {job.fitBreakdown.matchedSkills.slice(0, 4).map((skill) => (
+                        <span
+                          key={`${job.id}-${skill}`}
+                          className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700"
+                        >
+                          Matched: {skill}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-5 flex flex-wrap items-center gap-3 text-xs text-foreground/60">
+                    {typeof job.matchScore === "number" && (
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 font-semibold text-blue-700">
+                        Match {job.matchScore}%
+                      </span>
+                    )}
                     <span className="rounded-full border border-foreground/10 bg-white/70 px-3 py-1">
                       {job.workFromHome ? "Remote" : "On-site"}
                     </span>
@@ -441,6 +561,63 @@ const JobsPage = () => {
               {filteredJobs.length === 0 && (
                 <div className="rounded-2xl border border-dashed border-foreground/20 bg-white/70 p-8 text-center text-sm text-foreground/60">
                   No roles match these filters yet. Try widening your search.
+                </div>
+              )}
+
+              {filteredJobs.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-foreground/10 bg-white/80 p-4 shadow-sm backdrop-blur">
+                  <div className="space-y-1">
+                    <p className="text-sm text-foreground/60">
+                    Showing {pageStart + 1}-{Math.min(pageEnd, filteredJobs.length)} of {filteredJobs.length}
+                    </p>
+                    {totalPages === 1 && (
+                      <p className="text-xs text-foreground/50">
+                        Only one page of jobs is currently loaded.
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={safeCurrentPage === 1}
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    >
+                      Previous
+                    </Button>
+
+                    {pageNumbers.map((pageNumber, index) => {
+                      const prev = pageNumbers[index - 1];
+                      const showGap = typeof prev === "number" && pageNumber - prev > 1;
+
+                      return (
+                        <div key={`page-${pageNumber}`} className="flex items-center gap-2">
+                          {showGap && <span className="px-1 text-sm text-foreground/50">...</span>}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={pageNumber === safeCurrentPage ? "default" : "outline"}
+                            onClick={() => setCurrentPage(pageNumber)}
+                          >
+                            {pageNumber}
+                          </Button>
+                        </div>
+                      );
+                    })}
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={safeCurrentPage === totalPages}
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                      }
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

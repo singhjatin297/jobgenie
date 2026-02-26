@@ -43,14 +43,17 @@ interface ResumeObject {
 
 interface ResumeStore {
   resumeObject: ResumeObject | null;
+  hasHydrated: boolean;
   updateResumeData: (data: ResumeObject) => void;
   clearResume: () => void;
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useResumeStore = create<ResumeStore>()(
   persist(
     (set) => ({
       resumeObject: null,
+      hasHydrated: false,
       updateResumeData: (data: ResumeObject) => {
         set(() => ({
           resumeObject: data,
@@ -61,7 +64,18 @@ export const useResumeStore = create<ResumeStore>()(
           resumeObject: null,
         }));
       },
+      setHasHydrated: (value: boolean) => {
+        set(() => ({
+          hasHydrated: value,
+        }));
+      },
     }),
-    { name: "resume-storage", storage: createJSONStorage(() => localStorage) }
+    {
+      name: "resume-storage",
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    }
   )
 );

@@ -51,6 +51,15 @@ type JobDetailsResponse = {
   error?: string;
 };
 
+type TailoredDraft = {
+  summary?: string;
+  skills?: string[];
+  selectedExperience?: string[];
+  selectedProjects?: string[];
+  missingRequirements?: string[];
+  groundingNote?: string;
+};
+
 const cleanDescription = (raw?: string | null) => {
   if (!raw) return "No job description provided.";
   return raw
@@ -110,6 +119,9 @@ const JobDetailsPage = () => {
   const [payload, setPayload] = useState<JobDetailsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(jobId));
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const [tailorMode, setTailorMode] = useState<string>("");
+  const [tailoredDraft, setTailoredDraft] = useState<TailoredDraft | null>(null);
 
   useEffect(() => {
     if (!jobId) {
@@ -174,6 +186,54 @@ const JobDetailsPage = () => {
   const description = cleanDescription(job.job_description);
   const descriptionBlocks = splitDescription(description);
   const location = [job.job_state, job.job_country].filter(Boolean).join(", ");
+
+  const generateTailoredResume = async () => {
+    const rawResume = localStorage.getItem("Resume");
+    if (!rawResume) {
+      setError("Resume data was not found. Please go back and save your resume.");
+      return;
+    }
+
+    setIsGeneratingDraft(true);
+    setError(null);
+    try {
+      const candidate = JSON.parse(rawResume);
+      const response = await fetch("/api/tailor-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate,
+          job: {
+            title: job.job_title,
+            company: job.employer_name,
+            description: description,
+            requirements: description,
+            location: job.job_location,
+          },
+        }),
+      });
+
+      const json = (await response.json()) as {
+        mode?: string;
+        tailoredDraft?: TailoredDraft;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(json.error ?? "Failed to generate tailored draft");
+      }
+
+      setTailorMode(json.mode ?? "");
+      setTailoredDraft(json.tailoredDraft ?? null);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to generate tailored draft";
+      setError(message);
+      setTailoredDraft(null);
+    } finally {
+      setIsGeneratingDraft(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[radial-gradient(820px_440px_at_8%_-8%,#fee2e2_0%,transparent_60%),radial-gradient(760px_440px_at_95%_0%,#dbeafe_0%,transparent_60%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)] px-4 py-8 sm:px-6 sm:py-10">
@@ -284,6 +344,56 @@ const JobDetailsPage = () => {
           <aside className="space-y-6">
             <div className={cardClass}>
               <h3 className="text-lg font-semibold text-slate-900">
+                Tailored Resume Draft
+              </h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Generate a grounded draft using your saved resume facts only.
+              </p>
+              <Button
+                type="button"
+                className="mt-4"
+                onClick={generateTailoredResume}
+                disabled={isGeneratingDraft}
+              >
+                {isGeneratingDraft
+                  ? "Generating tailored draft..."
+                  : "Generate tailored draft"}
+              </Button>
+              {tailorMode && (
+                <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-500">
+                  Mode: {tailorMode}
+                </p>
+              )}
+              {tailoredDraft && (
+                <div className="mt-4 space-y-3 text-sm text-slate-700">
+                  {tailoredDraft.summary && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      {tailoredDraft.summary}
+                    </div>
+                  )}
+                  {!!tailoredDraft.skills?.length && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      Skills: {tailoredDraft.skills.join(", ")}
+                    </div>
+                  )}
+                  {!!tailoredDraft.selectedExperience?.length && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      {tailoredDraft.selectedExperience.map((line, index) => (
+                        <p key={`${line.slice(0, 16)}-${index}`}>- {line}</p>
+                      ))}
+                    </div>
+                  )}
+                  {!!tailoredDraft.missingRequirements?.length && (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                      Missing: {tailoredDraft.missingRequirements.join(", ")}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className={cardClass}>
+              <h3 className="text-lg font-semibold text-slate-900">
                 Application Channels
               </h3>
               <div className="mt-4 space-y-3">
@@ -341,20 +451,6 @@ const JobDetailsPage = () => {
               </div>
             </div>
 
-            <div className={cardClass}>
-              <h3 className="text-lg font-semibold text-slate-900">Snapshot</h3>
-              <div className="mt-4 grid gap-3 text-sm text-slate-700">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  Publisher: {job.job_publisher ?? "Unknown"}
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  Job ID: {job.job_id ?? "Unknown"}
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  Country: {job.job_country ?? "Unknown"}
-                </div>
-              </div>
-            </div>
           </aside>
         </section>
       </div>

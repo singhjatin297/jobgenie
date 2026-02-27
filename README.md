@@ -1,4 +1,4 @@
-# Zapier
+# Lazy Apply
 
 Resume-to-job-matching app built with Next.js App Router, Prisma, Postgres, RapidAPI JSearch, and Groq.
 

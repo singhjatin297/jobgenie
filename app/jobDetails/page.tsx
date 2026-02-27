@@ -166,10 +166,8 @@ const JobDetailsPage = () => {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-5xl px-6 py-10">
-        <div className="flex justify-center rounded-2xl border border-slate-200 bg-white p-8">
-          <Spinner className="h-5 w-5" />
-        </div>
+      <main className="mx-auto flex min-h-screen max-w-5xl items-center justify-center px-6 py-10">
+        <Spinner className="h-5 w-5" />
       </main>
     );
   }

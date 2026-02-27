@@ -185,16 +185,7 @@ const EditResume = () => {
       localStorage.setItem("jSearchResponse", JSON.stringify(payload));
       toast.success("Thanku ❤️");
 
-      const firstJob = payload?.data?.[0];
-      if (firstJob?.job_id) {
-        const detailsParams = new URLSearchParams({
-          job_id: firstJob.job_id,
-          country: (firstJob.job_country ?? "in").toLowerCase(),
-        });
-        router.push(`/jobDetails?${detailsParams.toString()}`);
-      } else {
-        router.push("/jobs");
-      }
+      router.push("/jobs");
       reset();
     } catch (error) {
       console.error("Resume upload failed:", error);

@@ -1,36 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Zapier
 
-## Getting Started
+Resume-to-job-matching app built with Next.js App Router, Prisma, Postgres, RapidAPI JSearch, and Groq.
 
-First, run the development server:
+## What It Does
+
+- Uploads a PDF resume and parses it into structured JSON.
+- Lets users edit resume data in a guided form.
+- Fetches jobs from JSearch and ranks them against the resume.
+- Shows job details and generates a grounded tailored draft.
+- Saves applied jobs to Postgres.
+
+## Tech Stack
+
+- Next.js 15 (App Router), React 19, TypeScript
+- Tailwind CSS 4 + shadcn/ui style components
+- Prisma + PostgreSQL
+- Groq API (`resume-upload`, `tailor-resume`)
+- RapidAPI JSearch (`job-search`, `job-details`)
+- Optional Ollama embeddings (`rank-jobs`)
+
+## Prerequisites
+
+- Node.js 20+
+- `pnpm` (recommended, repo includes `pnpm-lock.yaml`)
+- PostgreSQL (or Docker Compose service)
+
+## Environment Variables
+
+Create `.env` in the project root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/postgres"
+GROQ_API_KEY="your_groq_api_key"
+RAPID_API_KEY="your_rapidapi_key"
+# Optional (used by /api/rank-jobs for hybrid scoring)
+OLLAMA_BASE_URL="http://127.0.0.1:11434"
+OLLAMA_EMBEDDING_MODEL="nomic-embed-text"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+pnpm prisma generate
+pnpm prisma db push
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open `http://localhost:3000`.
 
-## Learn More
+## Docker
 
-To learn more about Next.js, take a look at the following resources:
+Development:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+docker compose up --build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Production-style compose:
 
-## Deploy on Vercel
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `pnpm dev` - start dev server
+- `pnpm build` - build app
+- `pnpm start` - start production server
+
+## API Routes
+
+- `POST /api/resume-upload` - parse uploaded resume PDF into structured data.
+- `GET /api/job-search` - fetch and aggregate job pages from JSearch.
+- `GET /api/job-details` - fetch detailed job data from JSearch.
+- `POST /api/rank-jobs` - score jobs against candidate profile (lexical or hybrid with Ollama).
+- `POST /api/tailor-resume` - generate grounded tailored draft for a selected role.
+- `POST /api/apply` - persist selected application/job to Postgres.
+- `GET /api/health` - lightweight health response.
+- `GET /api/test-db` - test Prisma DB write/read path.
+- `POST /api/scrapeJobs` - inserts a dummy job row (dev utility).
+
+## Main User Flow
+
+1. Upload resume on `/`.
+2. Review/edit extracted resume on `/editResume`.
+3. Browse ranked jobs on `/jobs`.
+4. Open role details on `/jobDetails`.
+5. Generate tailored draft from saved resume evidence.
+
+## Notes
+
+- Prisma client is generated into `app/generated/prisma`.
+- `rank-jobs` falls back to lexical scoring when Ollama is unavailable.
+- Keep API keys out of source control.
